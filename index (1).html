@@ -1,0 +1,1010 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>詩詞背誦問答游戲</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.9/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Noto Serif SC', serif; }
+        .container {
+            max-width: 100%;
+            padding: 1rem;
+            margin: 0;
+        }
+        @media (min-width: 640px) {
+            .container {
+                max-width: 640px;
+                padding: 2rem;
+            }
+        }
+        input {
+            font-size: 16px;
+            touch-action: manipulation;
+        }
+        button {
+            font-size: 16px;
+            touch-action: manipulation;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div id="root"></div>
+    <script type="text/babel">
+        const poems = [
+            {
+                title: "長干曲",
+                author: "崔顥",
+                lines: [
+                    "君家何處住？",
+                    "妾住在橫塘。",
+                    "停船暫借問，",
+                    "或恐是同鄉。"
+                ]
+            },
+            {
+                title: "卜算子·送鮑浩然之浙東",
+                author: "王觀",
+                lines: [
+                    "水是眼波橫，",
+                    "山是眉峰聚。",
+                    "欲問行人去那邊？",
+                    "眉眼盈盈處。",
+                    "才始送春歸，",
+                    "又送君歸去。",
+                    "若到江南趕上春，",
+                    "千萬和春住。"
+                ]
+            },
+            {
+                title: "清溪",
+                author: "王維",
+                lines: [
+                    "言入黃花川，",
+                    "每逐青溪水。",
+                    "隨山將萬轉，",
+                    "趣途無百里。",
+                    "聲喧亂石中，",
+                    "色靜深松裏。",
+                    "漾漾泛菱荇，",
+                    "澄澄映葭葦。",
+                    "我心素已閑，",
+                    "清川澹如此。",
+                    "請留磐石上，",
+                    "垂釣將已矣。"
+                ]
+            },
+            {
+                title: "終南別業",
+                author: "王維",
+                lines: [
+                    "中歲頗好道，",
+                    "晚家南山陲。",
+                    "興來每獨往，",
+                    "勝事空自知。",
+                    "行到水窮處，",
+                    "坐看雲起時。",
+                    "偶然值林叟，",
+                    "談笑無還期。"
+                ]
+            },
+            {
+                title: "問劉十九",
+                author: "白居易",
+                lines: [
+                    "綠蟻新醅酒，",
+                    "紅泥小火爐。",
+                    "晚來天欲雪，",
+                    "能飲一杯無。"
+                ]
+            },
+            {
+                title: "三衢道中",
+                author: "曾幾",
+                lines: [
+                    "梅子黃時日日晴，",
+                    "小溪泛盡卻山行。",
+                    "綠陰不減來時路，",
+                    "添得黃鸝四五聲。"
+                ]
+            },
+            {
+                title: "一剪梅·紅藕香殞玉簟秋",
+                author: "李清照",
+                lines: [
+                    "紅藕香殞玉簟秋，",
+                    "輕解羅裳，",
+                    "獨上蘭舟。",
+                    "雲中誰寄錦書來？",
+                    "雁字回時，",
+                    "月滿西樓。",
+                    "花自飄零水自流，",
+                    "一種相思，",
+                    "兩處閑愁。",
+                    "此情無計可消除，",
+                    "才下眉頭，",
+                    "卻上心頭。"
+                ]
+            },
+            {
+                title: "無題",
+                author: "晏殊",
+                lines: [
+                    "油壁香車不再逢，",
+                    "峽雲無跡任西東。",
+                    "梨花院落溶溶月，",
+                    "柳絮池塘淡淡風。",
+                    "幾日寂寥傷酒後，",
+                    "一番蕭索禁煙中。",
+                    "魚書欲寄何由達，",
+                    "水遠山長處處同。"
+                ]
+            },
+            {
+                title: "和子由澠池懷舊",
+                author: "蘇軾",
+                lines: [
+                    "人生到處知何似，",
+                    "應似飛鴻踏雪泥。",
+                    "泥上偶然留指爪，",
+                    "鴻飛那復計東西。",
+                    "老僧已死成新塔，",
+                    "壞壁無由見舊題。",
+                    "往日崎嶇還記否，",
+                    "路長人困蹇驢嘶。"
+                ]
+            },
+            {
+                title: "送元二使安西",
+                author: "王維",
+                lines: [
+                    "渭城朝雨浥輕塵，",
+                    "客舍青青柳色新。",
+                    "勸君更盡一杯酒，",
+                    "西出陽關無故人。"
+                ]
+            },
+            {
+                title: "春江晚景",
+                author: "蘇軾",
+                lines: [
+                    "竹外桃花三兩枝，",
+                    "春江水暖鴨先知。",
+                    "蔞蒿滿地蘆芽短，",
+                    "正是河豚欲上時。"
+                ]
+            },
+            {
+                title: "北陂杏花",
+                author: "王安石",
+                lines: [
+                    "一陂春水繞花身，",
+                    "花影妖嬈各占春。",
+                    "縱被春風吹作雪，",
+                    "絕勝南陌碾成塵。"
+                ]
+            },
+            {
+                title: "卜算子·黃州定慧院寓居作",
+                author: "蘇軾",
+                lines: [
+                    "缺月掛疏桐，",
+                    "漏斷人初靜。",
+                    "時見幽人獨往來，",
+                    "縹緲孤鴻影。",
+                    "驚起卻回頭，",
+                    "有恨無人省。",
+                    "揀盡寒枝不肯棲，",
+                    "寂寞沙洲冷。"
+                ]
+            },
+            {
+                title: "題破山寺後禪院",
+                author: "常建",
+                lines: [
+                    "清晨入古寺，",
+                    "初日照高林。",
+                    "曲徑通幽處，",
+                    "禪房花木深。",
+                    "山光悅鳥性，",
+                    "潭影空人心。",
+                    "萬籟此俱寂，",
+                    "但餘鐘磬音。"
+                ]
+            },
+            {
+                title: "赤壁",
+                author: "杜牧",
+                lines: [
+                    "折戟沉沙鐵未銷，",
+                    "自將磨洗認前朝。",
+                    "東風不與周郎便，",
+                    "銅雀春深鎖二喬。"
+                ]
+            },
+            {
+                title: "題臨安邸",
+                author: "林升",
+                lines: [
+                    "山外青山樓外樓，",
+                    "西湖歌舞幾時休？",
+                    "暖風熏得遊人醉，",
+                    "直把杭州作汴州。"
+                ]
+            },
+            {
+                title: "送杜少府之任蜀州",
+                author: "王勃",
+                lines: [
+                    "城闕輔三秦，",
+                    "風煙望五津。",
+                    "與君離別意，",
+                    "同是宦遊人。",
+                    "海內存知己，",
+                    "天涯若比鄰。",
+                    "無為在歧路，",
+                    "兒女共沾巾。"
+                ]
+            },
+            {
+                title: "題都城南莊",
+                author: "崔護",
+                lines: [
+                    "去年今日此門中，",
+                    "人面桃花相映紅。",
+                    "人面不知何處去，",
+                    "桃花依舊笑春風。"
+                ]
+            },
+            {
+                title: "相見歡",
+                author: "李煜",
+                lines: [
+                    "無言獨上西樓，",
+                    "月如鉤。",
+                    "寂寞梧桐深院鎖清秋。",
+                    "剪不斷，",
+                    "理還亂，",
+                    "是離愁。",
+                    "別是一般滋味在心頭。"
+                ]
+            },
+            {
+                title: "臨安春雨初霽",
+                author: "陸游",
+                lines: [
+                    "世味年來薄似紗，",
+                    "誰令騎馬客京華？",
+                    "小樓一夜聽春雨，",
+                    "深巷明朝賣杏花。",
+                    "矮紙斜行閑作草，",
+                    "晴窗細乳戲分茶。",
+                    "素衣莫起風塵歎，",
+                    "猶及清明可到家。"
+                ]
+            },
+            {
+                title: "山居秋暝",
+                author: "王維",
+                lines: [
+                    "空山新雨後，",
+                    "天氣晚來秋。",
+                    "明月松間照，",
+                    "清泉石上流。",
+                    "竹喧歸浣女，",
+                    "蓮動下漁舟。",
+                    "隨意春芳歇，",
+                    "王孫自可留。"
+                ]
+            },
+            {
+                title: "芙蓉樓送辛漸",
+                author: "王昌齡",
+                lines: [
+                    "寒雨連江夜入吳，",
+                    "平明送客楚山孤。",
+                    "洛陽親友如相問，",
+                    "一片冰心在玉壺。"
+                ]
+            },
+            {
+                title: "泊秦淮",
+                author: "杜牧",
+                lines: [
+                    "煙籠寒水月籠沙，",
+                    "夜泊秦淮近酒家。",
+                    "商女不知亡國恨，",
+                    "隔江猶唱後庭花。"
+                ]
+            },
+            {
+                title: "淮上與友人別",
+                author: "鄭谷",
+                lines: [
+                    "揚子江頭楊柳春，",
+                    "楊花愁殺渡江人。",
+                    "數聲風笛離亭晚，",
+                    "君向瀟湘我向秦。"
+                ]
+            },
+            {
+                title: "鵲橋仙",
+                author: "秦觀",
+                lines: [
+                    "纖雲弄巧，",
+                    "飛星傳恨，",
+                    "銀漢迢迢暗度。",
+                    "金風玉露一相逢，",
+                    "便勝卻人間無數。",
+                    "柔情似水，",
+                    "佳期如夢，",
+                    "忍顧鵲橋歸路。",
+                    "兩情若是久長時，",
+                    "又豈在朝朝暮暮。"
+                ]
+            },
+            {
+                title: "錦瑟",
+                author: "李商隱",
+                lines: [
+                    "錦瑟無端五十弦，",
+                    "一弦一柱思華年。",
+                    "莊生曉夢迷蝴蝶，",
+                    "望帝春心托杜鵑。",
+                    "滄海月明珠有淚，",
+                    "藍田日暖玉生煙。",
+                    "此情可待成追憶，",
+                    "只是當時已惘然。"
+                ]
+            },
+            {
+                title: "登幽州臺歌",
+                author: "陳子昂",
+                lines: [
+                    "前不見古人，",
+                    "後不見來者。",
+                    "念天地之悠悠，",
+                    "獨愴然而涕下。"
+                ]
+            },
+            {
+                title: "望月懷遠",
+                author: "張九齡",
+                lines: [
+                    "海上生明月，",
+                    "天涯共此時。",
+                    "情人怨遙夜，",
+                    "竟夕起相思。",
+                    "滅燭憐光滿，",
+                    "披衣覺露滋。",
+                    "不堪盈手贈，",
+                    "還寢夢佳期。"
+                ]
+            },
+            {
+                title: "登鸛雀樓",
+                author: "王之渙",
+                lines: [
+                    "白日依山盡，",
+                    "黃河入海流。",
+                    "欲窮千里目，",
+                    "更上一層樓。"
+                ]
+            },
+            {
+                title: "將進酒",
+                author: "李白",
+                lines: [
+                    "君不見黃河之水天上來，",
+                    "奔流到海不復回。",
+                    "君不見高堂明鏡悲白髮，",
+                    "朝如青絲暮成雪。",
+                    "人生得意須盡歡，",
+                    "莫使金樽空對月。",
+                    "天生我材必有用，",
+                    "千金散盡還復來。",
+                    "烹羊宰牛且為樂，",
+                    "會須一飲三百杯。",
+                    "岑夫子，",
+                    "丹丘生，",
+                    "將進酒，",
+                    "杯莫停。",
+                    "與君歌一曲，",
+                    "請君為我傾耳聽。",
+                    "鐘鼓饌玉不足貴，",
+                    "但願長醉不復醒。",
+                    "古來聖賢皆寂寞，",
+                    "惟有飲者留其名。",
+                    "陳王昔時宴平樂，",
+                    "鬥酒十千恣歡謔。",
+                    "主人何為言少錢，",
+                    "徑須沽取對君酌。",
+                    "五花馬，",
+                    "千金裘，",
+                    "呼兒將出換美酒，",
+                    "與爾同銷萬古愁。"
+                ]
+            },
+            {
+                title: "烏衣巷",
+                author: "劉禹錫",
+                lines: [
+                    "朱雀橋邊野草花，",
+                    "烏衣巷口夕陽斜。",
+                    "舊時王謝堂前燕，",
+                    "飛入尋常百姓家。"
+                ]
+            },
+            {
+                title: "無題",
+                author: "李商隱",
+                lines: [
+                    "昨夜星辰昨夜風，",
+                    "畫樓西畔桂堂東。",
+                    "身無彩鳳雙飛翼，",
+                    "心有靈犀一點通。",
+                    "隔座送鉤春酒暖，",
+                    "分曹射覆蠟燈紅。",
+                    "嗟餘聽鼓應官去，",
+                    "走馬蘭臺類轉蓬。"
+                ]
+            },
+            {
+                title: "相見歡",
+                author: "李煜",
+                lines: [
+                    "林花謝了春紅，",
+                    "太匆匆。",
+                    "無奈朝來寒雨晚來風。",
+                    "胭脂淚，",
+                    "相留醉，",
+                    "幾時重。",
+                    "自是人生長恨水長東。"
+                ]
+            },
+            {
+                title: "臨江仙·夜登小閣憶洛中舊遊",
+                author: "陳與義",
+                lines: [
+                    "憶昔午橋橋上飲，",
+                    "坐中多是豪英。",
+                    "長溝流月去無聲。",
+                    "杏花疏影裏，",
+                    "吹笛到天明。",
+                    "二十餘年如一夢，",
+                    "此身雖在堪驚。",
+                    "閑登小閣看新晴。",
+                    "古今多少事，",
+                    "漁唱起三更。"
+                ]
+            },
+            {
+                title: "醜奴兒·書博山道中壁",
+                author: "辛棄疾",
+                lines: [
+                    "少年不識愁滋味，",
+                    "愛上層樓。",
+                    "愛上層樓，",
+                    "為賦新詞強說愁。",
+                    "而今識盡愁滋味，",
+                    "欲說還休。",
+                    "欲說還休，",
+                    "卻道天涼好個秋。"
+                ]
+            },
+            {
+                title: "虞美人·聽雨",
+                author: "蔣捷",
+                lines: [
+                    "少年聽雨歌樓上，",
+                    "紅燭昏羅帳。",
+                    "壯年聽雨客舟中，",
+                    "江闊雲低斷雁叫西風。",
+                    "而今聽雨僧廬下，",
+                    "鬢已星星也。",
+                    "悲歡離合總無情，",
+                    "一任階前點滴到天明。"
+                ]
+            },
+            {
+                title: "武陵春",
+                author: "李清照",
+                lines: [
+                    "風住塵香花已盡，",
+                    "日晚倦梳頭。",
+                    "物是人非事事休，",
+                    "欲語淚先流。",
+                    "聞說雙溪春尚好，",
+                    "也擬泛輕舟。",
+                    "只恐雙溪舴艋舟，",
+                    "載不動許多愁。"
+                ]
+            },
+            {
+                title: "春夜洛城聞笛",
+                author: "李白",
+                lines: [
+                    "誰家玉笛暗飛聲，",
+                    "散入春風滿洛城。",
+                    "此夜曲中聞折柳，",
+                    "何人不起故園情。"
+                ]
+            },
+            {
+                title: "月下獨酌",
+                author: "李白",
+                lines: [
+                    "花間一壺酒，",
+                    "獨酌無相親。",
+                    "舉杯邀明月，",
+                    "對影成三人。",
+                    "月既不解飲，",
+                    "影徒隨我身。",
+                    "暫伴月將影，",
+                    "行樂須及春。",
+                    "我歌月徘徊，",
+                    "我舞影零亂。",
+                    "醒時同交歡，",
+                    "醉後各分散。",
+                    "永結無情遊，",
+                    "相期邈雲漢。"
+                ]
+            },
+            {
+                title: "淮上喜會梁州故人",
+                author: "韋應物",
+                lines: [
+                    "江漢曾為客，",
+                    "相逢每醉還。",
+                    "浮雲一別後，",
+                    "流水十年間。",
+                    "歡笑情如舊，",
+                    "蕭疏鬢已斑。",
+                    "何因不歸去？",
+                    "淮上有秋山。"
+                ]
+            },
+            {
+                title: "登樂遊原",
+                author: "李商隱",
+                lines: [
+                    "向晚意不適，",
+                    "驅車登古原。",
+                    "夕陽無限好，",
+                    "只是近黃昏。"
+                ]
+            },
+            {
+                title: "春山夜月",
+                author: "於良史",
+                lines: [
+                    "春山多勝事，",
+                    "賞玩夜忘歸。",
+                    "掬水月在手，",
+                    "弄花香滿衣。",
+                    "興來無遠近，",
+                    "欲去惜芳菲。",
+                    "南望鳴鐘處，",
+                    "樓臺深翠微。"
+                ]
+            },
+            {
+                title: "飲湖上初晴後雨",
+                author: "蘇軾",
+                lines: [
+                    "水光瀲灧晴方好，",
+                    "山色空蒙雨亦奇。",
+                    "欲把西湖比西子，",
+                    "淡妝濃抹總相宜。"
+                ]
+            },
+            {
+                title: "浣溪沙",
+                author: "晏殊",
+                lines: [
+                    "一向年光有限身，",
+                    "等閒離別易銷魂。",
+                    "酒筵歌席莫辭頻。",
+                    "滿目山河空念遠，",
+                    "落花風雨更傷春。",
+                    "不如憐取眼前人。"
+                ]
+            },
+            {
+                title: "絕句",
+                author: "杜甫",
+                lines: [
+                    "遲日江山麗，",
+                    "春風花草香。",
+                    "泥融飛燕子，",
+                    "沙暖睡鴛鴦。"
+                ]
+            },
+            {
+                title: "春夜喜雨",
+                author: "杜甫",
+                lines: [
+                    "好雨知時節，",
+                    "當春乃發生。",
+                    "隨風潛入夜，",
+                    "潤物細無聲。",
+                    "野徑雲俱黑，",
+                    "江船火獨明。",
+                    "曉看紅濕處，",
+                    "花重錦官城。"
+                ]
+            },
+            {
+                title: "漁翁",
+                author: "柳宗元",
+                lines: [
+                    "漁翁夜傍西岩宿，",
+                    "曉汲清湘燃楚竹。",
+                    "煙銷日出不見人，",
+                    "欸乃一聲山水綠。",
+                    "回看天際下中流，",
+                    "岩上無心雲相逐。"
+                ]
+            },
+            {
+                title: "虞美人",
+                author: "李煜",
+                lines: [
+                    "春花秋月何時了？",
+                    "往事知多少。",
+                    "小樓昨夜又東風，",
+                    "故國不堪回首月明中。",
+                    "雕欄玉砌應猶在，",
+                    "只是朱顏改。",
+                    "問君能有幾多愁？",
+                    "恰似一江春水向東流。"
+                ]
+            },
+            {
+                title: "醉花陰",
+                author: "李清照",
+                lines: [
+                    "薄霧濃雲愁永晝，",
+                    "瑞腦消金獸。",
+                    "佳節又重陽，",
+                    "玉枕紗廚，",
+                    "半夜涼初透。",
+                    "東籬把酒黃昏後，",
+                    "有暗香盈袖。",
+                    "莫道不銷魂，",
+                    "簾卷西風，",
+                    "人比黃花瘦。"
+                ]
+            },
+            {
+                title: "西江月·夜行黃沙道中",
+                author: "辛棄疾",
+                lines: [
+                    "明月別枝驚鵲，",
+                    "清風半夜鳴蟬。",
+                    "稻花香裏說豐年，",
+                    "聽取蛙聲一片。",
+                    "七八個星天外，",
+                    "兩三點雨山前。",
+                    "舊時茅店社林邊，",
+                    "路轉溪橋忽見。"
+                ]
+            },
+            {
+                title: "遊園不值",
+                author: "葉紹翁",
+                lines: [
+                    "應憐屐齒印蒼苔，",
+                    "小扣柴扉久不開。",
+                    "春色滿園關不住，",
+                    "一枝紅杏出牆來。"
+                ]
+            },
+            {
+                title: "題西太一宮壁",
+                author: "王安石",
+                lines: [
+                    "柳葉鳴蜩綠暗，",
+                    "荷花落日紅酣。",
+                    "三十六陂春水，",
+                    "白頭想見江南。"
+                ]
+            },
+            {
+                title: "定風波",
+                author: "蘇軾",
+                lines: [
+                    "莫聽穿林打葉聲，",
+                    "何妨吟嘯且徐行。",
+                    "竹杖芒鞋輕勝馬，",
+                    "誰怕？",
+                    "一蓑煙雨任平生。",
+                    "料峭春風吹酒醒，",
+                    "微冷，",
+                    "山頭斜照卻相迎。",
+                    "回首向來蕭瑟處，",
+                    "歸去，",
+                    "也無風雨也無晴。"
+                ]
+            },
+            {
+                title: "清平調",
+                author: "李白",
+                lines: [
+                    "雲想衣裳花想容，",
+                    "春風拂檻露華濃。",
+                    "若非群玉山頭見，",
+                    "會向瑤臺月下逢。"
+                ]
+            },
+            {
+                title: "水調歌頭",
+                author: "蘇軾",
+                lines: [
+                    "明月幾時有？",
+                    "把酒問青天。",
+                    "不知天上宮闕，",
+                    "今夕是何年。",
+                    "我欲乘風歸去，",
+                    "又恐瓊樓玉宇，",
+                    "高處不勝寒。",
+                    "起舞弄清影，",
+                    "何似在人間？",
+                    "轉朱閣，",
+                    "低綺戶，",
+                    "照無眠。",
+                    "不應有恨，",
+                    "何事長向別時圓？",
+                    "人有悲歡離合，",
+                    "月有陰晴圓缺，",
+                    "此事古難全。",
+                    "但願人長久，",
+                    "千里共嬋娟。"
+                ]
+            }
+        ];
+
+        const ranges = [
+            { label: "第1-10首", start: 0, end: 9 },
+            { label: "第11-20首", start: 10, end: 19 },
+            { label: "第21-30首", start: 20, end: 29 },
+            { label: "第31-40首", start: 30, end: 39 },
+            { label: "第41-50首", start: 40, end: 49 },
+            { label: "第51-58首", start: 50, end: 57 },
+            { label: "全部", start: 0, end: 57 }
+        ];
+
+        function getRandomPoem(rangeIndex) {
+            const { start, end } = ranges[rangeIndex];
+            const availablePoems = poems.slice(start, end + 1);
+            const poem = availablePoems[Math.floor(Math.random() * availablePoems.length)];
+            const lineCount = poem.lines.length;
+            const blankLine1 = Math.floor(Math.random() * lineCount);
+            let blankLine2 = Math.floor(Math.random() * lineCount);
+            while (blankLine2 === blankLine1) {
+                blankLine2 = Math.floor(Math.random() * lineCount);
+            }
+            const blankLines = [Math.min(blankLine1, blankLine2), Math.max(blankLine1, blankLine2)];
+            return { ...poem, blankLines };
+        }
+
+        function PoemGame() {
+            const [gameState, setGameState] = React.useState({
+                currentPoem: getRandomPoem(6),
+                userAnswers: ['', ''],
+                feedback: '',
+                rangeIndex: 6,
+                showAnswers: false
+            });
+
+            const handleRangeChange = (e) => {
+                const newRangeIndex = parseInt(e.target.value);
+                setGameState({
+                    ...gameState,
+                    rangeIndex: newRangeIndex,
+                    currentPoem: getRandomPoem(newRangeIndex),
+                    userAnswers: ['', ''],
+                    feedback: '',
+                    showAnswers: false
+                });
+            };
+
+            const handleInputChange = (index, value) => {
+                const newAnswers = [...gameState.userAnswers];
+                newAnswers[index] = value;
+                setGameState({ ...gameState, userAnswers: newAnswers });
+            };
+
+            const checkAnswers = () => {
+                const { currentPoem, userAnswers } = gameState;
+                const correctLines = currentPoem.lines;
+                const blankLines = currentPoem.blankLines;
+                const correctAnswers = [
+                    correctLines[blankLines[0]],
+                    correctLines[blankLines[1]]
+                ];
+
+                const cleanAnswer = (str) => str.replace(/[\？！，。；、]/g, '').trim();
+                const isCorrect = userAnswers.every((answer, index) =>
+                    cleanAnswer(answer) === cleanAnswer(correctAnswers[index])
+                );
+
+                setGameState({
+                    ...gameState,
+                    feedback: isCorrect ? '答案正確！' : `正確答案：${correctAnswers[0]} / ${correctAnswers[1]}`,
+                    showAnswers: !isCorrect
+                });
+
+                if (isCorrect) {
+                    setTimeout(() => {
+                        setGameState({
+                            ...gameState,
+                            currentPoem: getRandomPoem(gameState.rangeIndex),
+                            userAnswers: ['', ''],
+                            feedback: '',
+                            showAnswers: false
+                        });
+                    }, 1000);
+                }
+            };
+
+            const skipQuestion = () => {
+                const { currentPoem } = gameState;
+                const correctLines = currentPoem.lines;
+                const blankLines = currentPoem.blankLines;
+                const correctAnswers = [
+                    correctLines[blankLines[0]],
+                    correctLines[blankLines[1]]
+                ];
+
+                setGameState({
+                    ...gameState,
+                    feedback: `正確答案：${correctAnswers[0]} / ${correctAnswers[1]}`,
+                    showAnswers: true
+                });
+            };
+
+            const continueGame = () => {
+                setGameState({
+                    ...gameState,
+                    currentPoem: getRandomPoem(gameState.rangeIndex),
+                    userAnswers: ['', ''],
+                    feedback: '',
+                    showAnswers: false
+                });
+            };
+
+            const { currentPoem, userAnswers, feedback, rangeIndex, showAnswers } = gameState;
+            const blankLines = currentPoem.blankLines;
+            const correctAnswers = [
+                currentPoem.lines[blankLines[0]],
+                currentPoem.lines[blankLines[1]]
+            ];
+
+            return (
+                <div className="container bg-white p-4 rounded-lg shadow-lg">
+                    <h1 className="text-2xl font-bold text-center mb-4">詩詞背誦問答游戲</h1>
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium mb-2">選擇溫習範圍：</label>
+                        <select
+                            value={rangeIndex}
+                            onChange={handleRangeChange}
+                            className="w-full p-2 border rounded"
+                        >
+                            {ranges.map((range, index) => (
+                                <option key={index} value={index}>{range.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="mb-4">
+                        <p className="text-lg font-semibold">{currentPoem.title} - {currentPoem.author}</p>
+                        <div className="mt-2">
+                            {currentPoem.lines.map((line, index) => (
+                                <p key={index} className="text-gray-600">
+                                    {blankLines.includes(index) ? '______' : line}
+                                </p>
+                            ))}
+                        </div>
+                        <input
+                            type="text"
+                            value={userAnswers[0]}
+                            onChange={(e) => handleInputChange(0, e.target.value)}
+                            placeholder={`請填寫第${blankLines[0] + 1}句`}
+                            className="w-full p-2 mt-2 border rounded"
+                            disabled={showAnswers}
+                        />
+                        <input
+                            type="text"
+                            value={userAnswers[1]}
+                            onChange={(e) => handleInputChange(1, e.target.value)}
+                            placeholder={`請填寫第${blankLines[1] + 1}句`}
+                            className="w-full p-2 mt-2 border rounded"
+                            disabled={showAnswers}
+                        />
+                        {showAnswers && (
+                            <div className="mt-2 text-gray-600">
+                                <p>正確答案：</p>
+                                <p>{correctAnswers[0]}</p>
+                                <p>{correctAnswers[1]}</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex space-x-2">
+                        <button
+                            onClick={checkAnswers}
+                            className="flex-1 bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:bg-gray-300"
+                            disabled={showAnswers}
+                        >
+                            提交答案
+                        </button>
+                        <button
+                            onClick={skipQuestion}
+                            className="flex-1 bg-gray-500 text-white p-2 rounded hover:bg-gray-600 disabled:bg-gray-300"
+                            disabled={showAnswers}
+                        >
+                            跳過
+                        </button>
+                    </div>
+                    {showAnswers && (
+                        <button
+                            onClick={continueGame}
+                            className="w-full mt-4 bg-green-500 text-white p-2 rounded hover:bg-green-600"
+                        >
+                            繼續
+                        </button>
+                    )}
+                    {feedback && (
+                        <p className={`mt-4 text-center ${feedback.includes('正確') ? 'text-green-500' : 'text-gray-600'}`}>
+                            {feedback}
+                        </p>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<PoemGame />, document.getElementById('root'));
+    </script>
+</body>
+</html>
