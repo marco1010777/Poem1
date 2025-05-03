@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -816,9 +777,14 @@
             { label: "全部", start: 0, end: 57 }
         ];
 
-        function getRandomPoem(rangeIndex) {
+        function getRandomPoem(rangeIndex, skippedPoems) {
             const { start, end } = ranges[rangeIndex];
-            const availablePoems = poems.slice(start, end + 1);
+            const availablePoems = poems
+                .slice(start, end + 1)
+                .filter((poem, index) => !skippedPoems.includes(start + index));
+            if (availablePoems.length === 0) {
+                return null; // No poems available
+            }
             const poem = availablePoems[Math.floor(Math.random() * availablePoems.length)];
             const lineCount = poem.lines.length;
             const blankLine1 = Math.floor(Math.random() * lineCount);
@@ -832,19 +798,21 @@
 
         function PoemGame() {
             const [gameState, setGameState] = React.useState({
-                currentPoem: getRandomPoem(6),
+                currentPoem: getRandomPoem(6, []),
                 userAnswers: ['', ''],
                 feedback: '',
                 rangeIndex: 6,
-                showAnswers: false
+                showAnswers: false,
+                skippedPoems: []
             });
 
             const handleRangeChange = (e) => {
                 const newRangeIndex = parseInt(e.target.value);
+                const newPoem = getRandomPoem(newRangeIndex, gameState.skippedPoems);
                 setGameState({
                     ...gameState,
                     rangeIndex: newRangeIndex,
-                    currentPoem: getRandomPoem(newRangeIndex),
+                    currentPoem: newPoem,
                     userAnswers: ['', ''],
                     feedback: '',
                     showAnswers: false
@@ -858,6 +826,7 @@
             };
 
             const checkAnswers = () => {
+                if (!gameState.currentPoem) return;
                 const { currentPoem, userAnswers } = gameState;
                 const correctLines = currentPoem.lines;
                 const blankLines = currentPoem.blankLines;
@@ -879,9 +848,10 @@
 
                 if (isCorrect) {
                     setTimeout(() => {
+                        const newPoem = getRandomPoem(gameState.rangeIndex, gameState.skippedPoems);
                         setGameState({
                             ...gameState,
-                            currentPoem: getRandomPoem(gameState.rangeIndex),
+                            currentPoem: newPoem,
                             userAnswers: ['', ''],
                             feedback: '',
                             showAnswers: false
@@ -891,6 +861,7 @@
             };
 
             const skipQuestion = () => {
+                if (!gameState.currentPoem) return;
                 const { currentPoem } = gameState;
                 const correctLines = currentPoem.lines;
                 const blankLines = currentPoem.blankLines;
@@ -906,17 +877,75 @@
                 });
             };
 
-            const continueGame = () => {
+            const skipPoem = () => {
+                if (!gameState.currentPoem) return;
+                const poemIndex = poems.findIndex(
+                    (p) => p.title === gameState.currentPoem.title && p.author === gameState.currentPoem.author
+                );
+                const newSkippedPoems = [...gameState.skippedPoems, poemIndex];
+                const newPoem = getRandomPoem(gameState.rangeIndex, newSkippedPoems);
                 setGameState({
                     ...gameState,
-                    currentPoem: getRandomPoem(gameState.rangeIndex),
+                    skippedPoems: newSkippedPoems,
+                    currentPoem: newPoem,
                     userAnswers: ['', ''],
                     feedback: '',
                     showAnswers: false
                 });
             };
 
-            const { currentPoem, userAnswers, feedback, rangeIndex, showAnswers } = gameState;
+            const resetPoemLibrary = () => {
+                const newPoem = getRandomPoem(gameState.rangeIndex, []);
+                setGameState({
+                    ...gameState,
+                    skippedPoems: [],
+                    currentPoem: newPoem,
+                    userAnswers: ['', ''],
+                    feedback: '',
+                    showAnswers: false
+                });
+            };
+
+            const continueGame = () => {
+                const newPoem = getRandomPoem(gameState.rangeIndex, gameState.skippedPoems);
+                setGameState({
+                    ...gameState,
+                    currentPoem: newPoem,
+                    userAnswers: ['', ''],
+                    feedback: '',
+                    showAnswers: false
+                });
+            };
+
+            const { currentPoem, userAnswers, feedback, rangeIndex, showAnswers, skippedPoems } = gameState;
+
+            if (!currentPoem) {
+                return (
+                    <div className="container bg-white p-4 rounded-lg shadow-lg">
+                        <h1 className="text-2xl font-bold text-center mb-4">詩詞背誦問答游戲</h1>
+                        <p className="text-center text-red-500 mb-4">題庫中已無可用詩詞！</p>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">選擇溫習範圍：</label>
+                            <select
+                                value={rangeIndex}
+                                onChange={handleRangeChange}
+                                className="w-full p-2 border rounded"
+                            >
+                                {ranges.map((range, index) => (
+                                    <option key={index} value={index}>{range.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <button
+                            onClick={resetPoemLibrary}
+                            className="w-full bg-purple-500 text-white p-2 rounded hover:bg-purple-600"
+                        >
+                            重設題庫
+                        </button>
+                    </div>
+                );
+            }
+
             const blankLines = currentPoem.blankLines;
             const correctAnswers = [
                 currentPoem.lines[blankLines[0]],
@@ -986,7 +1015,19 @@
                         >
                             跳過
                         </button>
+                        <button
+                            onClick={skipPoem}
+                            className="flex-1 bg-orange-500 text-white p-2 rounded hover:bg-orange-600"
+                        >
+                            跳過詩詞
+                        </button>
                     </div>
+                    <button
+                        onClick={resetPoemLibrary}
+                        className="w-full mt-2 bg-purple-500 text-white p-2 rounded hover:bg-purple-600"
+                    >
+                        重設題庫
+                    </button>
                     {showAnswers && (
                         <button
                             onClick={continueGame}
