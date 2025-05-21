@@ -21,13 +21,21 @@
                 padding: 2rem;
             }
         }
-        input {
+        input, button {
             font-size: 16px;
             touch-action: manipulation;
         }
-        button {
-            font-size: 16px;
-            touch-action: manipulation;
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(100%);
+        }
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        @media (min-width: 640px) {
+            .sidebar {
+                width: 300px;
+            }
         }
     </style>
 </head>
@@ -783,7 +791,7 @@
                 .slice(start, end + 1)
                 .filter((poem, index) => !skippedPoems.includes(start + index));
             if (availablePoems.length === 0) {
-                return null; // No poems available
+                return null;
             }
             const poem = availablePoems[Math.floor(Math.random() * availablePoems.length)];
             const lineCount = poem.lines.length;
@@ -803,8 +811,14 @@
                 feedback: '',
                 rangeIndex: 6,
                 showAnswers: false,
-                skippedPoems: []
+                skippedPoems: [],
+                isSidebarOpen: false,
+                incorrectWords: [[], []]
             });
+
+            const toggleSidebar = () => {
+                setGameState({ ...gameState, isSidebarOpen: !gameState.isSidebarOpen });
+            };
 
             const handleRangeChange = (e) => {
                 const newRangeIndex = parseInt(e.target.value);
@@ -815,7 +829,8 @@
                     currentPoem: newPoem,
                     userAnswers: ['', ''],
                     feedback: '',
-                    showAnswers: false
+                    showAnswers: false,
+                    incorrectWords: [[], []]
                 });
             };
 
@@ -823,6 +838,22 @@
                 const newAnswers = [...gameState.userAnswers];
                 newAnswers[index] = value;
                 setGameState({ ...gameState, userAnswers: newAnswers });
+            };
+
+            const togglePoemInclusion = (poemIndex) => {
+                const newSkippedPoems = gameState.skippedPoems.includes(poemIndex)
+                    ? gameState.skippedPoems.filter((i) => i !== poemIndex)
+                    : [...gameState.skippedPoems, poemIndex];
+                const newPoem = getRandomPoem(gameState.rangeIndex, newSkippedPoems);
+                setGameState({
+                    ...gameState,
+                    skippedPoems: newSkippedPoems,
+                    currentPoem: newPoem,
+                    userAnswers: ['', ''],
+                    feedback: '',
+                    showAnswers: false,
+                    incorrectWords: [[], []]
+                });
             };
 
             const checkAnswers = () => {
@@ -840,10 +871,17 @@
                     cleanAnswer(answer) === cleanAnswer(correctAnswers[index])
                 );
 
+                const incorrectWords = userAnswers.map((answer, index) => {
+                    const correct = cleanAnswer(correctAnswers[index]).split('');
+                    const user = cleanAnswer(answer).split('');
+                    return user.map((char, i) => char !== correct[i] ? i : null).filter(i => i !== null);
+                });
+
                 setGameState({
                     ...gameState,
                     feedback: isCorrect ? '答案正確！' : `正確答案：${correctAnswers[0]} / ${correctAnswers[1]}`,
-                    showAnswers: !isCorrect
+                    showAnswers: !isCorrect,
+                    incorrectWords
                 });
 
                 if (isCorrect) {
@@ -854,7 +892,8 @@
                             currentPoem: newPoem,
                             userAnswers: ['', ''],
                             feedback: '',
-                            showAnswers: false
+                            showAnswers: false,
+                            incorrectWords: [[], []]
                         });
                     }, 1000);
                 }
@@ -873,7 +912,8 @@
                 setGameState({
                     ...gameState,
                     feedback: `正確答案：${correctAnswers[0]} / ${correctAnswers[1]}`,
-                    showAnswers: true
+                    showAnswers: true,
+                    incorrectWords: [[], []]
                 });
             };
 
@@ -890,7 +930,8 @@
                     currentPoem: newPoem,
                     userAnswers: ['', ''],
                     feedback: '',
-                    showAnswers: false
+                    showAnswers: false,
+                    incorrectWords: [[], []]
                 });
             };
 
@@ -902,7 +943,8 @@
                     currentPoem: newPoem,
                     userAnswers: ['', ''],
                     feedback: '',
-                    showAnswers: false
+                    showAnswers: false,
+                    incorrectWords: [[], []]
                 });
             };
 
@@ -913,16 +955,32 @@
                     currentPoem: newPoem,
                     userAnswers: ['', ''],
                     feedback: '',
-                    showAnswers: false
+                    showAnswers: false,
+                    incorrectWords: [[], []]
                 });
             };
 
-            const { currentPoem, userAnswers, feedback, rangeIndex, showAnswers, skippedPoems } = gameState;
+            const { currentPoem, userAnswers, feedback, rangeIndex, showAnswers, skippedPoems, isSidebarOpen, incorrectWords } = gameState;
+
+            const renderAnswer = (answer, incorrectIndices) => {
+                const cleanAnswer = answer.replace(/[\？！，。；、]/g, '').trim();
+                return cleanAnswer.split('').map((char, i) => (
+                    <span key={i} className={incorrectIndices.includes(i) ? 'text-red-500' : 'text-black'}>
+                        {char}
+                    </span>
+                ));
+            };
 
             if (!currentPoem) {
                 return (
-                    <div className="container bg-white p-4 rounded-lg shadow-lg">
+                    <div className="container bg-white p-4 rounded-lg shadow-lg relative">
                         <h1 className="text-2xl font-bold text-center mb-4">詩詞背誦問答游戲</h1>
+                        <button
+                            onClick={toggleSidebar}
+                            className="absolute top-4 right-4 bg-gray-300 text-black p-2 rounded hover:bg-gray-400"
+                        >
+                            {isSidebarOpen ? '關閉側欄' : '開啟側欄'}
+                        </button>
                         <p className="text-center text-red-500 mb-4">題庫中已無可用詩詞！</p>
                         <div className="mb-4">
                             <label className="block text-sm font-medium mb-2">選擇溫習範圍：</label>
@@ -942,6 +1000,35 @@
                         >
                             重設題庫
                         </button>
+                        <div className={`fixed top-0 right-0 h-full bg-white p-4 shadow-lg sidebar ${isSidebarOpen ? 'open' : ''}`}>
+                            <h2 className="text-lg font-bold mb-4">詩詞管理</h2>
+                            <p>無當前詩詞</p>
+                            <h3 className="text-md font-semibold mt-4">已跳過的詩詞</h3>
+                            {skippedPoems.length === 0 ? (
+                                <p>無已跳過的詩詞</p>
+                            ) : (
+                                <ul className="list-disc pl-5">
+                                    {skippedPoems.map((index) => (
+                                        <li key={index}>{poems[index].title} - {poems[index].author}</li>
+                                    ))}
+                                </ul>
+                            )}
+                            <h3 className="text-md font-semibold mt-4">選擇詩詞（{ranges[rangeIndex].label}）</h3>
+                            {poems.slice(ranges[rangeIndex].start, ranges[rangeIndex].end + 1).map((poem, i) => {
+                                const globalIndex = ranges[rangeIndex].start + i;
+                                return (
+                                    <div key={globalIndex} className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={!skippedPoems.includes(globalIndex)}
+                                            onChange={() => togglePoemInclusion(globalIndex)}
+                                            className="mr-2"
+                                        />
+                                        <span>{poem.title} - {poem.author}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 );
             }
@@ -953,8 +1040,14 @@
             ];
 
             return (
-                <div className="container bg-white p-4 rounded-lg shadow-lg">
+                <div className="container bg-white p-4 rounded-lg shadow-lg relative">
                     <h1 className="text-2xl font-bold text-center mb-4">詩詞背誦問答游戲</h1>
+                    <button
+                        onClick={toggleSidebar}
+                        className="absolute top-4 right-4 bg-gray-300 text-black p-2 rounded hover:bg-gray-400"
+                    >
+                        {isSidebarOpen ? '關閉側欄' : '開啟側欄'}
+                    </button>
                     <div className="mb-4">
                         <label className="block text-sm font-medium mb-2">選擇溫習範圍：</label>
                         <select
@@ -984,6 +1077,11 @@
                             className="w-full p-2 mt-2 border rounded"
                             disabled={showAnswers}
                         />
+                        {showAnswers && (
+                            <div className="mt-1 text-sm">
+                                <p>你的答案：{renderAnswer(userAnswers[0], incorrectWords[0])}</p>
+                            </div>
+                        )}
                         <input
                             type="text"
                             value={userAnswers[1]}
@@ -993,7 +1091,12 @@
                             disabled={showAnswers}
                         />
                         {showAnswers && (
-                            <div className="mt-2 text-gray-600">
+                            <div className="mt-1 text-sm">
+                                <p>你的答案：{renderAnswer(userAnswers[1], incorrectWords[1])}</p>
+                            </div>
+                        )}
+                        {showAnswers && (
+                            <div className="mt-2 text-black">
                                 <p>正確答案：</p>
                                 <p>{correctAnswers[0]}</p>
                                 <p>{correctAnswers[1]}</p>
@@ -1037,10 +1140,40 @@
                         </button>
                     )}
                     {feedback && (
-                        <p className={`mt-4 text-center ${feedback.includes('正確') ? 'text-green-500' : 'text-gray-600'}`}>
+                        <p className="mt-4 text-center text-black">
                             {feedback}
                         </p>
                     )}
+                    <div className={`fixed top-0 right-0 h-full bg-white p-4 shadow-lg sidebar ${isSidebarOpen ? 'open' : ''}`}>
+                        <h2 className="text-lg font-bold mb-4">詩詞管理</h2>
+                        <h3 className="text-md font-semibold">當前詩詞</h3>
+                        <p>{currentPoem.title} - {currentPoem.author}</p>
+                        <h3 className="text-md font-semibold mt-4">已跳過的詩詞</h3>
+                        {skippedPoems.length === 0 ? (
+                            <p>無已跳過的詩詞</p>
+                        ) : (
+                            <ul className="list-disc pl-5">
+                                {skippedPoems.map((index) => (
+                                    <li key={index}>{poems[index].title} - {poems[index].author}</li>
+                                ))}
+                            </ul>
+                        )}
+                        <h3 className="text-md font-semibold mt-4">選擇詩詞（{ranges[rangeIndex].label}）</h3>
+                        {poems.slice(ranges[rangeIndex].start, ranges[rangeIndex].end + 1).map((poem, i) => {
+                            const globalIndex = ranges[rangeIndex].start + i;
+                            return (
+                                <div key={globalIndex} className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={!skippedPoems.includes(globalIndex)}
+                                        onChange={() => togglePoemInclusion(globalIndex)}
+                                        className="mr-2"
+                                    />
+                                    <span>{poem.title} - {poem.author}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             );
         }
