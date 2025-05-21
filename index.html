@@ -37,6 +37,20 @@
                 width: 300px;
             }
         }
+        /* Custom scrollbar styling */
+        .scrollbar-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scrollbar-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .scrollbar-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        .scrollbar-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
@@ -1014,20 +1028,22 @@
                                 </ul>
                             )}
                             <h3 className="text-md font-semibold mt-4">選擇詩詞（{ranges[rangeIndex].label}）</h3>
-                            {poems.slice(ranges[rangeIndex].start, ranges[rangeIndex].end + 1).map((poem, i) => {
-                                const globalIndex = ranges[rangeIndex].start + i;
-                                return (
-                                    <div key={globalIndex} className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={!skippedPoems.includes(globalIndex)}
-                                            onChange={() => togglePoemInclusion(globalIndex)}
-                                            className="mr-2"
-                                        />
-                                        <span>{poem.title} - {poem.author}</span>
-                                    </div>
-                                );
-                            })}
+                            <div className={`scrollbar-container ${rangeIndex === 6 ? 'max-h-[50vh] overflow-y-auto' : ''}`}>
+                                {poems.slice(ranges[rangeIndex].start, ranges[rangeIndex].end + 1).map((poem, i) => {
+                                    const globalIndex = ranges[rangeIndex].start + i;
+                                    return (
+                                        <div key={globalIndex} className="flex items-center whitespace-nowrap">
+                                            <input
+                                                type="checkbox"
+                                                checked={!skippedPoems.includes(globalIndex)}
+                                                onChange={() => togglePoemInclusion(globalIndex)}
+                                                className="mr-2"
+                                            />
+                                            <span>{poem.title} - {poem.author}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 );
@@ -1159,20 +1175,22 @@
                             </ul>
                         )}
                         <h3 className="text-md font-semibold mt-4">選擇詩詞（{ranges[rangeIndex].label}）</h3>
-                        {poems.slice(ranges[rangeIndex].start, ranges[rangeIndex].end + 1).map((poem, i) => {
-                            const globalIndex = ranges[rangeIndex].start + i;
-                            return (
-                                <div key={globalIndex} className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={!skippedPoems.includes(globalIndex)}
-                                        onChange={() => togglePoemInclusion(globalIndex)}
-                                        className="mr-2"
-                                    />
-                                    <span>{poem.title} - {poem.author}</span>
-                                </div>
-                            );
-                        })}
+                        <div className={`scrollbar-container ${rangeIndex === 6 ? 'max-h-[50vh] overflow-y-auto' : ''}`}>
+                            {poems.slice(ranges[rangeIndex].start, ranges[rangeIndex].end + 1).map((poem, i) => {
+                                const globalIndex = ranges[rangeIndex].start + i;
+                                return (
+                                    <div key={globalIndex} className="flex items-center whitespace-nowrap">
+                                        <input
+                                            type="checkbox"
+                                            checked={!skippedPoems.includes(globalIndex)}
+                                            onChange={() => togglePoemInclusion(globalIndex)}
+                                            className="mr-2"
+                                        />
+                                        <span>{poem.title} - {poem.author}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             );
